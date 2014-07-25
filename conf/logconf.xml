@@ -1,0 +1,133 @@
+<configuration>
+	<describe>
+		1、启动main方法时参数为topic的名称
+		2、各topic启动之前首先要保证汇总流已经起动，即先启动［merge］topic 流。
+	</describe>
+    <kafkaTopics>
+		<describe>
+			1、[appClass]此kafka　topic下的流处理app核心处理类。
+			2、[appName]	流处理app 名字。
+			3、[zkQuorum]:zookeeper成员列表。
+			4、[topic]:kafka topic 名称。					
+			5、[streamSpace]:流数据处理批次时间间隔（单位：秒）。
+			6、[separator]:kafka流数据字段分隔符，空时黙认为［0x02］。
+			7、[describe]:功能描述。
+		</describe>    
+	    <kafka>
+	        <appClass>com.asiainfo.mix.log.impl.BitAnalysis</appClass>
+	        <appName>Mix_bit_Log_process</appName>
+	        <zkQuorum>localhost:2111</zkQuorum>
+	        <topic>bid</topic>
+	        <streamSpace>2</streamSpace>
+	        <separator></separator>
+	        <describe>竞标 kafka 输入</describe>
+	    </kafka>
+	    <kafka>
+	        <appClass>com.asiainfo.mix.log.impl.ExposeAnalysis</appClass>
+	        <appName>Mix_expose_Log_process</appName>
+	        <zkQuorum>localhost:2111</zkQuorum>
+	        <topic>expose</topic>
+	        <streamSpace>2</streamSpace>
+	        <separator></separator>
+	        <describe>曝光 kafka 输入</describe>
+	    </kafka>
+	    <kafka>
+	        <appClass>com.asiainfo.mix.log.impl.ClickAnalysis</appClass>
+	        <appName>Mix_click_Log_process</appName>
+	        <zkQuorum>localhost:2111</zkQuorum>
+	        <topic>click</topic>
+	        <streamSpace>2</streamSpace>
+	        <separator></separator>
+	        <describe>点击 kafka 输入</describe>
+	    </kafka>
+	    <kafka>
+	        <appClass>com.asiainfo.mix.log.impl.ArriveAnalysis</appClass>
+	        <appName>Mix_arrive_Log_process</appName>
+	        <zkQuorum>localhost:2111</zkQuorum>
+	        <topic>arrive</topic>
+	        <streamSpace>2</streamSpace>
+	        <separator></separator>
+	        <describe>点击 kafka 输入</describe>
+	    </kafka>
+	    <kafka>
+	        <appClass>com.asiainfo.mix.log.impl.MergeLogAnalysis</appClass>
+	        <appName>merge all logs_process</appName>
+	        <zkQuorum>localhost:2111</zkQuorum>
+	        <topic>merge</topic>
+	        <streamSpace>2</streamSpace>
+	        <separator>kafkaAsiainfoMixSeparator</separator>
+	        <describe>汇总日志更新mysql 输入</describe>
+	    </kafka>
+	</kafkaTopics>
+    <dataSource>
+   		<kafakaOut>
+	        <topic>merge</topic>
+	        <brokers>localhost:9092</brokers>
+	        <separator>kafkaAsiainfoMixSeparator</separator>
+	        <describe>各类型log经流处理后，重定向的kafka topic.</describe>
+		</kafakaOut>
+		<dbSource>
+			<driver>com.mysql.jdbc.Driver</driver>
+			<url>jdbc:mysql://192.168.101.201:3306/test</url>
+			<user>user1</user>
+			<password>user1</password>
+		</dbSource>
+    </dataSource>
+	<logProperties>	
+		<describe>
+			1、[topicLogType]的值必需要与kafka的topic一致,标名此类log所发送的kafka topic。
+			2、[logSpace]日志记录在数据库中的时间间隔，时间间隔在logSpace内的将在db中产生一条，从业务上讲所有log类型的logSpace应该是一致的（单位：分钟）。	
+			3、[items]:按log消息的实际字段顺序记录log字段名称。	
+			4、[itemsDescribe]:对log消息实际结构字段的汉语描述。					
+			5、[rowKey]:流数据中指定一组字段做为流的键，spark将会从这组主键中提取对应要更新的表的主键值。	
+		</describe>
+		<log>
+			<topicLogType>click</topicLogType>
+			<logSpace>15</logSpace>
+			<items>log_length,log_version,log_time,expose_id,ad_id,order_id,activity_id,exchange_uid,user_gender,cookie,source,client_id,user_agent,media_url,landpage_urls,represent_type,represent_pos,page_type,interest_type,area_id,size_id,ad_pos_id,bit_time</items>
+			<itemsDescribe>日志长度,日志版本,日志时间,曝光id,广告id,订单id,活动id,ex_uid,性别,cookie,流量来源,客户端ip,ua,referer,跳转地址,展现类型,展示位置,页面分类,用户兴趣,地域id,尺寸id,广告位id,竞价时间</itemsDescribe>
+			<rowKey>log_time,ad_id,order_id,activity_id,media_url,area_id,size_id,represent_pos</rowKey>
+			<describe></describe>
+		</log>
+		<log>
+			<topicLogType>expose</topicLogType>
+			<logSpace>15</logSpace>
+			<items>log_length,log_version,log_time,cost,expose_id,ad_id,order_id,activity_id,exchange_uid,user_gender,cookie,source,client_id,user_agent,media_url,represent_type,represent_pos,page_type,interest_type,area_id,size_id,ad_pos_id,bit_time</items>
+			<itemsDescribe>日志长度,日志版本,日志时间,cost,曝光id,广告id,订单id,活动id,ex_uid,性别,cookie,流量来源,客户端ip,ua,referer,展现类型,展示位置,页面分类,用户兴趣,地域id,尺寸id,广告位id,竞价时间</itemsDescribe>
+			<rowKey>log_time,ad_id,order_id,activity_id,media_url,area_id,size_id,represent_pos</rowKey>
+			<describe></describe>
+		</log>
+		<log>
+			<topicLogType>bid</topicLogType>
+			<logSpace>15</logSpace>
+			<items>log_length,log_version,log_type,log_time,exchange_id,bit_id,client_ip,area_id,exchange_uid,user_agent,user_gender,media_url,media_type,page_type,web_keys,interest_type,exclude_info,ad_pos_info,bitted_ad_num,bitted_ad_info,process_time</items>
+			<itemsDescribe>日志长度,日志版本,日志类型,请求日期/时间,EXCHANGE标识,竞价ID,客户端ip,地域ID,EXCHANGE用户ID,USER AGENT,USER GENDER,URL,媒体网站分类,页面分类,页面关键词信息,百度兴趣分类,排除行业信息,广告位信息,参与竞价广告数量,参与竞价广告信息</itemsDescribe>
+			<rowKey>log_time,area_id,media_url,ad_pos_info,bitted_ad_info</rowKey>
+			<describe></describe>
+		</log>
+		<log>
+			<topicLogType>arrive</topicLogType>
+			<logSpace>15</logSpace>
+			<items>log_length,log_version,log_time,cookie,gif_name,check_id,user_agent,media_url,id</items>
+			<itemsDescribe>日志长度,日志版本,日志时间,cookie,gif_name,监测点id,ua,referer,订单id</itemsDescribe>
+			<rowKey>log_time,id</rowKey>
+			<describe></describe>
+		</log>
+		<log>
+			<topicLogType>merge</topicLogType>
+			<logSpace>15</logSpace>
+			<items>rowKey,id,activity_id,order_id,material_id,ad_id,size_id,area_id,start_time,end_time,media,ad_pos_id,bid_cnt,bid_success_cnt,expose_cnt,click_cnt,arrive_cnt,second_jump_cnt,trans_cnt,cost,log_length</items>
+			<itemsDescribe>行键,自增,活动ID,订单ID,素材ID,广告ID,尺寸ID,地域ID（可能是省，也可 能是市）,开始时间(00|30分钟),结束时间(29|59分钟),媒体,广告位ID,竞价次数,竞价成功次数,曝光次数,点击次数,到达次数,二跳次数（暂不统计）,转化次数,花费,merge长度</itemsDescribe>
+			<rowKey>rowKey</rowKey>
+			<describe></describe>
+		</log>
+	</logProperties>
+	<tableDefines>
+		<table>
+			<tableName>dsp_report_data</tableName>
+			<items>id,activity_id,order_id,material_id,ad_id,size_id,area_id,start_time,end_time,media,ad_pos_id,bid_cnt,bid_success_cnt,expose_cnt,click_cnt,arrive_cnt,second_jump_cnt,trans_cnt,cost</items>
+			<itemsDescribe>自增,活动ID,订单ID,素材ID,广告ID,尺寸ID,地域ID（可能是省，也可 能是市）,开始时间(00,30分钟),结束时间(29,59分钟),媒体,广告位ID,竞价次数,竞价成功次数,曝光次数,点击次数,到达次数,二跳次数（暂不统计）,转化次数,花费</itemsDescribe>
+			<describe></describe>
+		</table>
+	</tableDefines>
+</configuration>
