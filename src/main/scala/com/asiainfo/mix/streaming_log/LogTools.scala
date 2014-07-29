@@ -188,7 +188,7 @@ object LogTools extends Logging {
    * log 打印
    */
   def mixInfo(msg: String) = { log.info(msg) }
-  def mixDebug(msg: String) = { if (true) log.info(msg) }
+  def mixDebug(msg: String) = { if (true) log.debug(msg) }
   def mixError(msg: String) = { log.error(msg) }
 
   /**
