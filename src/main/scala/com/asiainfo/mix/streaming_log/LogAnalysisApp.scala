@@ -131,9 +131,8 @@ object LogAnalysisApp {
         val master = "local[2]"
         val ssc = new StreamingContext(master, appName, Seconds(streamSpace.toInt), System.getenv("SPARK_HOME"))
 
-//    val sparkConf = new SparkConf().setAppName(appName)
-//    val ssc = new StreamingContext(sparkConf, Seconds(streamSpace.toInt))
-
+	//    val sparkConf = new SparkConf().setAppName(appName)
+	//    val ssc = new StreamingContext(sparkConf, Seconds(streamSpace.toInt))
     val steram = KafkaUtils.createStream(ssc, zkQuorum, "test-consumer-group", Map(topic -> 1)).asInstanceOf[DStream[(String, String)]]
     val inputStream: DStream[Array[(String, String)]] = steram.map(f => {
       var data = f._2 + separator + "MixSparkLogEndSeparator"
@@ -155,8 +154,7 @@ object LogAnalysisApp {
     val constructor = constructors(0).newInstance()
 
     val outputStream = constructor.asInstanceOf[StreamAction].run(inputStream, Seq(kafaArray.toArray, dbSourceArray.toArray, mixLogArray.toArray, tablesArray.toArray))
-//    outputStream.saveAsTextFiles("/spark_log/sourcelog/" + topic + "/" + topic, "log")
-  outputStream.print
+    outputStream.saveAsTextFiles("/spark_log/sourcelog/" + topic + "/" + topic, "log")
     ssc.start()
     ssc.awaitTermination()
   }
