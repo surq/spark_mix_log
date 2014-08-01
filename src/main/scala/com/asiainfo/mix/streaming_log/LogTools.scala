@@ -2,6 +2,7 @@ package com.asiainfo.mix.streaming_log
 
 import kafka.producer.KeyedMessage
 import java.sql.DriverManager
+import java.sql.SQLException
 import java.net.InetAddress
 import java.net.Socket
 import java.io.DataOutputStream
@@ -15,6 +16,7 @@ import scala.beans.BeanProperty
 import java.text.SimpleDateFormat
 import java.text.DecimalFormat
 import scala.collection.mutable.ArrayBuffer
+
 
 object LogTools extends Logging {
 
@@ -138,6 +140,9 @@ object LogTools extends Logging {
       }
       mixInfo(LogTools.getClass().getName() + " INFO: 操作语句：" + exec_sql_str)
       stmt.executeUpdate(exec_sql_str)
+    } catch {
+      case sqlEx: SQLException => sqlEx.printStackTrace()
+      case ex: Exception => ex.printStackTrace()
     } finally {
       conn.close()
     }
