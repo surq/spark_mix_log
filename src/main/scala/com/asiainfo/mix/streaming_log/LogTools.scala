@@ -2,6 +2,7 @@ package com.asiainfo.mix.streaming_log
 
 import kafka.producer.KeyedMessage
 import java.sql.DriverManager
+import java.sql.SQLException
 import java.net.InetAddress
 import java.net.Socket
 import java.io.DataOutputStream
@@ -16,6 +17,7 @@ import java.text.SimpleDateFormat
 import java.text.DecimalFormat
 import scala.collection.mutable.ArrayBuffer
 import java.sql.SQLException
+
 
 object LogTools extends Logging {
 
