@@ -9,7 +9,6 @@ import org.apache.spark.streaming.dstream.DStream
  */
 abstract class StreamAction {
  def run(inputStream:DStream[Array[(String, String)]],xmlParm:Seq[Array[(String, String)]]): DStream[String]
-
   def printInfo(className: Class[_], msg: String) {
     LogTools.mixInfo("["+ className.getName() +"] INFO: " + msg)
   }
@@ -18,5 +17,8 @@ abstract class StreamAction {
   }
   def printError(className: Class[_], msg: String) {
     LogTools.mixError("["+ className.getName() +"] ERROR: " + msg)
+  }
+  def printError(className: Class[_], msg: String,U:Unit) {
+    LogTools.mixError("["+ className.getName() +"] ERROR: " + msg ,U)
   }
 }

@@ -97,6 +97,8 @@ object LogTools extends Logging {
     val dbSourceMap = dbSourceArray.toMap
     val recordMap = record.toMap
     Class.forName(dbSourceMap("driver"))
+    val exceptionStr = selectKeyArray.mkString(",")+record.mkString(",")
+    
     val conn = DriverManager.getConnection(dbSourceMap("url"), dbSourceMap("user"), dbSourceMap("password"))
 
     try {
@@ -142,8 +144,8 @@ object LogTools extends Logging {
       mixInfo(LogTools.getClass().getName() + " INFO: 操作语句：" + exec_sql_str)
       stmt.executeUpdate(exec_sql_str)
     } catch {
-      case sqlEx: SQLException => sqlEx.printStackTrace()
-      case ex: Exception => ex.printStackTrace()
+      case sqlEx: SQLException => mixError(exceptionStr,sqlEx.printStackTrace())
+      case ex: Exception => mixError(exceptionStr,ex.printStackTrace())
     } finally {
       conn.close()
     }
@@ -196,6 +198,7 @@ object LogTools extends Logging {
   def mixInfo(msg: String) = { log.info(msg) }
   def mixDebug(msg: String) = { if (true) log.debug(msg) }
   def mixError(msg: String) = { log.error(msg) }
+  def mixError(msg: String,u:Unit) = { log.error(msg, u) }
 
   /**
    * 字符串分隔为定长的array<br>
