@@ -2,23 +2,25 @@
 	<describe>
 		1、启动main方法时参数为topic的名称
 		2、各topic启动之前首先要保证汇总流已经起动，即先启动［merge］topic 流。
+		3、启动脚本：mix_spark_log.sh　start all
 	</describe>
     <kafkaTopics>
 		<describe>
 			1、[appClass]此kafka　topic下的流处理app核心处理类。
 			2、[appName]	流处理app 名字。
 			3、[zkQuorum]:zookeeper成员列表。
-			4、[topic]:kafka topic 名称。					
-			5、[streamSpace]:流数据处理批次时间间隔（单位：秒）。
-			6、[separator]:kafka流数据字段分隔符，空时黙认为［0x02］。
-			7、[describe]:功能描述。
+			4、[topic]:kafka topic 名称。	
+			5、[consumerNum]:接收kafka的consumer个数。	
+			6、[streamSpace]:流数据处理批次时间间隔（单位：秒）。
+			7、[separator]:kafka流数据字段分隔符，空时黙认为［0x02］。
+			8、[describe]:功能描述。
 		</describe>    
 	    <kafka>
-	        <appClass>com.asiainfo.mix.log.impl.BitAnalysis</appClass>
-	        <appName>Mix_bit_Log_process</appName>
-	        <zkQuorum>localhost:2111</zkQuorum>
+	        <appClass>com.asiainfo.mix.log.impl.BidAnalysis</appClass>
+	        <appName>Mix_bid_Log_process</appName>
+	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
 	        <topic>bid</topic>
-	    	<consumerNum>2</consumerNum>
+	        <consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <separator></separator>
 	        <describe>竞标 kafka 输入</describe>
@@ -26,7 +28,7 @@
 	    <kafka>
 	        <appClass>com.asiainfo.mix.log.impl.ExposeAnalysis</appClass>
 	        <appName>Mix_expose_Log_process</appName>
-	        <zkQuorum>localhost:2111</zkQuorum>
+	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
 	        <topic>expose</topic>
 	        <consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
@@ -36,9 +38,9 @@
 	    <kafka>
 	        <appClass>com.asiainfo.mix.log.impl.ClickAnalysis</appClass>
 	        <appName>Mix_click_Log_process</appName>
-	        <zkQuorum>localhost:2111</zkQuorum>
+	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
 	        <topic>click</topic>
-	        <consumerNum>2</consumerNum>
+	    	<consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <separator></separator>
 	        <describe>点击 kafka 输入</describe>
@@ -46,19 +48,19 @@
 	    <kafka>
 	        <appClass>com.asiainfo.mix.log.impl.ArriveAnalysis</appClass>
 	        <appName>Mix_arrive_Log_process</appName>
-	        <zkQuorum>localhost:2111</zkQuorum>
+	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
 	        <topic>arrive</topic>
-	        <consumerNum>2</consumerNum>
+	    	<consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <separator></separator>
-	        <describe>点击 kafka 输入</describe>
+	        <describe>到达 kafka 输入</describe>
 	    </kafka>
 	    <kafka>
 	        <appClass>com.asiainfo.mix.log.impl.MergeLogAnalysis</appClass>
-	        <appName>merge all logs_process</appName>
-	        <zkQuorum>localhost:2111</zkQuorum>
+	        <appName>merge all logs process</appName>
+	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
 	        <topic>merge</topic>
-	        <consumerNum>2</consumerNum>
+	    	<consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <separator>kafkaAsiainfoMixSeparator</separator>
 	        <describe>汇总日志更新mysql 输入</describe>
@@ -67,17 +69,17 @@
     <dataSource>
    		<kafakaOut>
 	        <topic>merge</topic>
-	        <brokers>localhost:9092</brokers>
+	        <brokers>dmp001:9092,dmp002:9092,dmp003:9092</brokers>
 	        <separator>kafkaAsiainfoMixSeparator</separator>
 	        <describe>各类型log经流处理后，重定向的kafka topic.</describe>
 		</kafakaOut>
 		<dbSource>
 			<driver>com.mysql.jdbc.Driver</driver>
-			<url>jdbc:mysql://192.168.101.201:3306/test</url>
-			<user>user1</user>
-			<password>user1</password>
+			<url>jdbc:mysql://rdsz3yvjiz3yvji.mysql.rds.aliyuncs.com:3306/dmp_console_test</url>
+			<user>dmp_console_test</user>
+			<password>a25a_Uagq</password>
 		</dbSource>
-    </dataSource>
+	</dataSource>	
 	<logProperties>	
 		<describe>
 			1、[topicLogType]的值必需要与kafka的topic一致,标名此类log所发送的kafka topic。
@@ -106,7 +108,7 @@
 			<topicLogType>bid</topicLogType>
 			<logSpace>15</logSpace>
 			<items>log_length,log_version,log_type,log_time,exchange_id,bit_id,client_ip,area_id,exchange_uid,user_agent,user_gender,media_url,media_type,page_type,web_keys,interest_type,exclude_info,ad_pos_info,bitted_ad_num,bitted_ad_info,process_time</items>
-			<itemsDescribe>日志长度,日志版本,日志类型,请求日期/时间,EXCHANGE标识,竞价ID,客户端ip,地域ID,EXCHANGE用户ID,USER AGENT,USER GENDER,URL,媒体网站分类,页面分类,页面关键词信息,百度兴趣分类,排除行业信息,广告位信息,参与竞价广告数量,参与竞价广告信息</itemsDescribe>
+			<itemsDescribe>日志长度,日志版本,日志类型,请求日期/时间,EXCHANGE标识,竞价ID,客户端ip,地域ID,EXCHANGE用户ID,USER AGENT,USER GENDER,URL,媒体网站分类,页面分类,页面关键词信息,百度兴趣分类,排除行业信息,广告位信息,参与竞价广告数量,参与竞价广告信息,处理时间</itemsDescribe>
 			<rowKey>log_time,area_id,media_url,ad_pos_info,bitted_ad_info</rowKey>
 			<describe></describe>
 		</log>
