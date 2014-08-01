@@ -23,8 +23,8 @@ class BidAnalysis extends StreamAction with Serializable {
    * 2、mixLogArray----[configuration/logProperties/log]<br>
    * 3、tablesArray----[configuration/tableDefines/table]<br>
    */
-  override def run(inputStream: DStream[Array[(String, String)]], xmlParm: Seq[Array[(String, String)]]):DStream[String] = {
-    printInfo(this.getClass(),"BitAnalysis is running!")
+  override def run(inputStream: DStream[Array[(String, String)]], xmlParm: Seq[Array[(String, String)]]): DStream[String] = {
+    printInfo(this.getClass(), "BitAnalysis is running!")
     val kafaMap = xmlParm(0).toMap
     val logPropertiesMap = xmlParm(2).toMap
     val tablesMap = xmlParm(3).toMap
@@ -47,13 +47,13 @@ class BidAnalysis extends StreamAction with Serializable {
     val separator = "asiainfoMixSeparator"
     inputStream.filter(record => {
       val itemMap = record.toMap
-      printDebug(this.getClass(),"source DStream:" + itemMap.mkString(","))
+      printDebug(this.getClass(), "source DStream:" + itemMap.mkString(","))
       // 第3个字段【log_type】值为1的日志条数
-      // 1.竞价日志里会有两部分内容，a放弃竞价日志以18开头***  b参与竞价20开头****，所需的维度信息均在18列
+      // 1.竞价日志里会有两部分内容，a放弃竞价日志以18开头***  b参与竞价21开头****，所需的维度信息均在18列
       if (itemMap("log_type").trim == "1" && itemMap("log_length") == "21") true else false
     }).map(record => {
       val itemMap = record.toMap
-      printDebug(this.getClass(),"map:" + itemMap.mkString(","))
+      printDebug(this.getClass(), "map:" + itemMap.mkString(","))
       val keyMap = (for { key <- keyItems } yield (key, itemMap(key))).toMap
       (rowKeyEditor(keyMap, logSpace, separator), record)
     }).groupByKey.map(f => {
@@ -63,19 +63,19 @@ class BidAnalysis extends StreamAction with Serializable {
       // 流计算
       dbrecord += (("bid_cnt") -> count.toString)
       // 顺列流字段为db表结构字段
-      var mesgae = LogTools.setTBSeq(f._1,tbItems,dbrecord,kafkaseparator)
-      
+      var mesgae = LogTools.setTBSeq(f._1, tbItems, dbrecord, kafkaseparator)
+
       //　第一个字段log_length（为merge结构字段数）　第二个字段rowKey
-      val merge_size =tbItems.size+2
-       mesgae = mesgae+ kafkaseparator + merge_size.toString
-      
+      val merge_size = tbItems.size + 2
+      mesgae = mesgae + kafkaseparator + merge_size.toString
+
       // kafa send
       LogTools.kafkaSend(mesgae, brokers, topic)
       printDebug(this.getClass(), "to kafka topic merge data: " + mesgae)
       f._1
     })
   }
-  
+
   /**
    * 根据竞价日志和最终要更新的mysql表的主键<br>
    * 编辑竞价日志的rowkey<br>
@@ -89,13 +89,18 @@ class BidAnalysis extends StreamAction with Serializable {
     //URL	media_url 提取出完整域名
     //参与竞价广告信息	bitted_ad_info 包含多个子字段：(广告ID ad_id、 ad_id和material_id相同、
     //订单ID order_id、活动ID activity_id、广告位ID ad_pos_id、出价 bit_price、sizeid size_id  
-	val bitted_ad_infoList = keyMap("bitted_ad_info")
-	val ox003: Char = 3
+    val bitted_ad_infoList = keyMap("bitted_ad_info")
+    val ox003: Char = 3
     val bitted_ad_info = (bitted_ad_infoList.split(ox003))(0)
     val ox004: Char = 4
-//    //(adId_orderId_cId_slotId_price_sizeId)
+    // 20(adId_orderId_cId_slotId_price_sizeId)
     val infoList = LogTools.splitArray(bitted_ad_info, ox004.toString, 6)
-//    val infoList = LogTools.splitArray(bitted_ad_info, "%", 6)
+
+    //活动ID	●	20(adId_orderId_活动ID_slotId_price_sizeId)
+    //订单ID	●	20(adId_订单ID_cId_slotId_price_sizeId)
+    //素材ID	●	20(素材ID_orderId_cId_slotId_price_sizeId)
+    //广告ID	●	20(广告ID_orderId_cId_slotId_price_sizeId)
+    //尺寸ID	●	20(adId_orderId_cId_slotId_price_尺寸ID)
 
     // 活动ID
     val activity_id = infoList(2)
@@ -103,29 +108,31 @@ class BidAnalysis extends StreamAction with Serializable {
     val order_id = infoList(1)
     // 素材ID ad_id和material_id相同
     val material_id = infoList(0)
-    
-    // (slotId_size_locationId_landpage_lowprice)
-     val ad_pos_info = keyMap("ad_pos_info")
-     val posinfoList = LogTools.splitArray(ad_pos_info, ox004.toString, 5)
     // 广告ID
-    val ad_id = posinfoList(2)
+    val ad_id = infoList(0)
     // 尺寸ID
     val size_id = infoList(5)
+
+    // 18(slotId_size_广告位ID_landpage_lowprice)
+    val ad_pos_info = keyMap("ad_pos_info")
+    val posinfoList = LogTools.splitArray(ad_pos_info, ox004.toString, 5)
+    // 广告位ID
+    val ad_pos_id = posinfoList(1)
+    
     //地域ID	area_id
     val area_id = keyMap("area_id")
     //URL	media_url
     val media_url = LogTools.getDomain(keyMap("media_url"))
-    // 广告位ID
-    val ad_pos_id = infoList(3)
+
     val log_time = LogTools.timeConversion_H(keyMap("log_time")) + LogTools.timeFlg(keyMap("log_time"), logSpace)
     activity_id + separator +
-    order_id + separator +
-    material_id + separator + 
-    ad_id + separator + 
-    size_id + separator + 
-    area_id + separator + 
-    media_url + separator + 
-    ad_pos_id + separator + 
-    log_time
+      order_id + separator +
+      material_id + separator +
+      ad_id + separator +
+      size_id + separator +
+      area_id + separator +
+      media_url + separator +
+      ad_pos_id + separator +
+      log_time
   }
 }

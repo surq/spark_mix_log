@@ -50,11 +50,15 @@ class MergeLogAnalysis extends StreamAction with Serializable {
 
       // 创建db表结构并初始化
       var dbrecord = Map[String, String]()
-
       // 汇总所有类型log日志更新的字段
       f._2.foreach(record => {
+    	  val exceptItems =Array("rowKey","log_length")
         val items = for (enum <- record if (enum._2 != "")) yield enum
-        items.foreach(f => { dbrecord += ((f._1) -> f._2) })
+        items.foreach(f => {
+          if(exceptItems.contains(f._1)){
+            dbrecord += (f._1 ->f._2) 
+            }else{ 
+              dbrecord += ((f._1) -> (dbrecord.getOrElse(f._1, "0").toFloat+f._2.toFloat).toString) } })
       })
       // 去除前取数据处理时，拼接的rowKey字段和长度，此字段数据库中不存在
       dbrecord -= "rowKey"

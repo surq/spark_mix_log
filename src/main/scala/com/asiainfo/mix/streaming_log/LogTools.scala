@@ -15,6 +15,7 @@ import scala.beans.BeanProperty
 import java.text.SimpleDateFormat
 import java.text.DecimalFormat
 import scala.collection.mutable.ArrayBuffer
+import java.sql.SQLException
 
 object LogTools extends Logging {
 
@@ -138,6 +139,9 @@ object LogTools extends Logging {
       }
       mixInfo(LogTools.getClass().getName() + " INFO: 操作语句：" + exec_sql_str)
       stmt.executeUpdate(exec_sql_str)
+    } catch {
+      case sqlEx: SQLException => sqlEx.printStackTrace()
+      case ex: Exception => ex.printStackTrace()
     } finally {
       conn.close()
     }

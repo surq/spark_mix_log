@@ -48,6 +48,7 @@ object LogAnalysisApp {
     }
 
     //------------------kafaka-----------------------------------------
+    val consumerNum = (kafkaTopics \ "consumerNum").text.toString.trim
     val appName = (kafkaTopics \ "appName").text.toString.trim
     val zkQuorum = (kafkaTopics \ "zkQuorum").text.toString.trim
     val topic = (kafkaTopics \ "topic").text.toString.trim
@@ -128,16 +129,16 @@ object LogAnalysisApp {
     tablesArray += ("describe" -> tb_describe)
 
     // TODO
-        val master = "local[2]"
-        val ssc = new StreamingContext(master, appName, Seconds(streamSpace.toInt), System.getenv("SPARK_HOME"))
+    //    val master = "local[2]"
+    //    val ssc = new StreamingContext(master, appName, Seconds(streamSpace.toInt), System.getenv("SPARK_HOME"))
 
-	//    val sparkConf = new SparkConf().setAppName(appName)
-	//    val ssc = new StreamingContext(sparkConf, Seconds(streamSpace.toInt))
-    val steram = KafkaUtils.createStream(ssc, zkQuorum, "test-consumer-group", Map(topic -> 1)).asInstanceOf[DStream[(String, String)]]
-    val inputStream: DStream[Array[(String, String)]] = steram.map(f => {
+    val sparkConf = new SparkConf().setAppName(appName)
+    val ssc = new StreamingContext(sparkConf, Seconds(streamSpace.toInt))
+    val stream = (1 to consumerNum.toInt).map(_ => KafkaUtils.createStream(ssc, zkQuorum, "test-consumer-group", Map(topic -> 1)).asInstanceOf[DStream[(String, String)]]).reduce(_.union(_))
+    val inputStream: DStream[Array[(String, String)]] = stream.map(f => {
       var data = f._2 + separator + "MixSparkLogEndSeparator"
       val recodeList = data.split(separator)
-     val recode = (for {index <- 0 until recodeList.size-1} yield (recodeList(index))).toArray
+      val recode = (for { index <- 0 until recodeList.size - 1 } yield (recodeList(index))).toArray
       val keyValueArray = (items.split(",")).zip(recode)
       printDebug("from topic:" + topic + " record: " + keyValueArray.mkString(","))
       keyValueArray
