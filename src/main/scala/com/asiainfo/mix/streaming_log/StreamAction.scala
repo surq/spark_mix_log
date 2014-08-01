@@ -8,6 +8,7 @@ import org.apache.spark.streaming.dstream.DStream
  * 所有log处理都要实现此类<br>
  */
 abstract class StreamAction {
+  
  def run(inputStream:DStream[Array[(String, String)]],xmlParm:Seq[Array[(String, String)]]): DStream[String]
   def printInfo(className: Class[_], msg: String) {
     LogTools.mixInfo("["+ className.getName() +"] INFO: " + msg)
