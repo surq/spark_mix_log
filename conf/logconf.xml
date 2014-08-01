@@ -18,6 +18,7 @@
 	        <appName>Mix_bit_Log_process</appName>
 	        <zkQuorum>localhost:2111</zkQuorum>
 	        <topic>bid</topic>
+	    	<consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <separator></separator>
 	        <describe>竞标 kafka 输入</describe>
@@ -27,6 +28,7 @@
 	        <appName>Mix_expose_Log_process</appName>
 	        <zkQuorum>localhost:2111</zkQuorum>
 	        <topic>expose</topic>
+	        <consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <separator></separator>
 	        <describe>曝光 kafka 输入</describe>
@@ -36,6 +38,7 @@
 	        <appName>Mix_click_Log_process</appName>
 	        <zkQuorum>localhost:2111</zkQuorum>
 	        <topic>click</topic>
+	        <consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <separator></separator>
 	        <describe>点击 kafka 输入</describe>
@@ -45,6 +48,7 @@
 	        <appName>Mix_arrive_Log_process</appName>
 	        <zkQuorum>localhost:2111</zkQuorum>
 	        <topic>arrive</topic>
+	        <consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <separator></separator>
 	        <describe>点击 kafka 输入</describe>
@@ -54,6 +58,7 @@
 	        <appName>merge all logs_process</appName>
 	        <zkQuorum>localhost:2111</zkQuorum>
 	        <topic>merge</topic>
+	        <consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <separator>kafkaAsiainfoMixSeparator</separator>
 	        <describe>汇总日志更新mysql 输入</describe>
