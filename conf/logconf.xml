@@ -50,7 +50,7 @@
 	        <appName>Mix_arrive_Log_process</appName>
 	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
 	        <topic>arrive</topic>
-	    	<consumerNum>2</consumerNum>
+	    	<consumerNum>1</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <separator></separator>
 	        <describe>到达 kafka 输入</describe>
