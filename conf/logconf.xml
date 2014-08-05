@@ -115,8 +115,8 @@
 		<log>
 			<topicLogType>arrive</topicLogType>
 			<logSpace>15</logSpace>
-			<items>log_length,log_version,log_time,cookie,gif_name,check_id,user_agent,media_url,id</items>
-			<itemsDescribe>日志长度,日志版本,日志时间,cookie,gif_name,监测点id,ua,referer,订单id</itemsDescribe>
+			<items>log_length,log_version,log_time,cookie,gif_name,check_id,user_agent,media_url,id,ip</items>
+			<itemsDescribe>日志长度,日志版本,日志时间,cookie,gif_name,监测点id,ua,referer,订单id,客户端ip地址</itemsDescribe>
 			<rowKey>log_time,id</rowKey>
 			<describe></describe>
 		</log>
