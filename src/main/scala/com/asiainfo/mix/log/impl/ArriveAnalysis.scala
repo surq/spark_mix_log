@@ -54,7 +54,7 @@ class ArriveAnalysis extends StreamAction with Serializable {
       // （time_domain_sizeid_areaid_slotid_cid_oid_adid）
       val idList = LogTools.splitArray(itemMap("id"), ox003.toString, 8)
       val time = if(idList(0).trim=="") 0 else idList(0).toLong
-      val logtime = itemMap("log_time").toLong + (5 * 60 * 1000)
+      val logtime = itemMap("log_time").toLong - (5 * 60 * 1000)
       if (logtime <= time) true else false
     }).map(record => {
       // （第4个字段相同并且第9个字段oid相同的多条记录算一条记录）

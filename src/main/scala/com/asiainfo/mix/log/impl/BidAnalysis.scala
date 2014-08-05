@@ -50,7 +50,7 @@ class BidAnalysis extends StreamAction with Serializable {
       printDebug(this.getClass(), "source DStream:" + itemMap.mkString(","))
       // 第3个字段【log_type】值为1的日志条数
       // 1.竞价日志里会有两部分内容，a放弃竞价日志以18开头***  b参与竞价21开头****，所需的维度信息均在18列
-      if (itemMap("log_type").trim == "1" && itemMap("log_length") == "21") true else false
+      if (itemMap("log_type").trim == "1" && itemMap("log_length").trim == "21") true else false
     }).map(record => {
       val itemMap = record.toMap
       printDebug(this.getClass(), "map:" + itemMap.mkString(","))
