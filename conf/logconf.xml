@@ -2,66 +2,70 @@
 	<describe>
 		1、启动main方法时参数为topic的名称
 		2、各topic启动之前首先要保证汇总流已经起动，即先启动［merge］topic 流。
-		3、启动脚本：mix_spark_log.sh　start all
 	</describe>
     <kafkaTopics>
 		<describe>
 			1、[appClass]此kafka　topic下的流处理app核心处理类。
 			2、[appName]	流处理app 名字。
 			3、[zkQuorum]:zookeeper成员列表。
-			4、[topic]:kafka topic 名称。	
-			5、[consumerNum]:接收kafka的consumer个数。	
-			6、[streamSpace]:流数据处理批次时间间隔（单位：秒）。
-			7、[separator]:kafka流数据字段分隔符，空时黙认为［0x02］。
-			8、[describe]:功能描述。
+			4、[topic]:kafka topic 名称。					
+			5、[streamSpace]:流数据处理批次时间间隔（单位：秒）。
+			6、[separator]:kafka流数据字段分隔符，空时黙认为［0x02］。
+			7、[describe]:功能描述。
+			8、[batchSplitSpace]:spark拉取数据的时间间隔。
 		</describe>    
 	    <kafka>
 	        <appClass>com.asiainfo.mix.log.impl.BidAnalysis</appClass>
-	        <appName>Mix_bid_Log_process</appName>
-	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
+	        <appName>Mix_bit_Log_process</appName>
+	        <zkQuorum>localhost:2111</zkQuorum>
 	        <topic>bid</topic>
 	        <consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
+	        <batchSplitSpace>200</batchSplitSpace>
 	        <separator></separator>
 	        <describe>竞标 kafka 输入</describe>
 	    </kafka>
 	    <kafka>
 	        <appClass>com.asiainfo.mix.log.impl.ExposeAnalysis</appClass>
 	        <appName>Mix_expose_Log_process</appName>
-	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
-	        <topic>expose</topic>
+	        <zkQuorum>localhost:2111</zkQuorum>
+	        <topic>exposetest</topic>
 	        <consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
+	        <batchSplitSpace>200</batchSplitSpace>
 	        <separator></separator>
 	        <describe>曝光 kafka 输入</describe>
 	    </kafka>
 	    <kafka>
 	        <appClass>com.asiainfo.mix.log.impl.ClickAnalysis</appClass>
 	        <appName>Mix_click_Log_process</appName>
-	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
+	        <zkQuorum>localhost:2111</zkQuorum>
 	        <topic>click</topic>
 	    	<consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
+	        <batchSplitSpace>200</batchSplitSpace>
 	        <separator></separator>
 	        <describe>点击 kafka 输入</describe>
 	    </kafka>
 	    <kafka>
 	        <appClass>com.asiainfo.mix.log.impl.ArriveAnalysis</appClass>
 	        <appName>Mix_arrive_Log_process</appName>
-	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
+	        <zkQuorum>localhost:2111</zkQuorum>
 	        <topic>arrive</topic>
 	    	<consumerNum>1</consumerNum>
 	        <streamSpace>2</streamSpace>
+	        <batchSplitSpace>200</batchSplitSpace>
 	        <separator></separator>
 	        <describe>到达 kafka 输入</describe>
 	    </kafka>
 	    <kafka>
 	        <appClass>com.asiainfo.mix.log.impl.MergeLogAnalysis</appClass>
-	        <appName>merge all logs process</appName>
-	        <zkQuorum>dmp001:2187,dmp002:2187,dmp003:2187</zkQuorum>
+	        <appName>merge all logs_process</appName>
+	        <zkQuorum>localhost:2111</zkQuorum>
 	        <topic>merge</topic>
 	    	<consumerNum>2</consumerNum>
-	        <streamSpace>2</streamSpace>
+	        <streamSpace>5</streamSpace>
+	        <batchSplitSpace>1000</batchSplitSpace>
 	        <separator>kafkaAsiainfoMixSeparator</separator>
 	        <describe>汇总日志更新mysql 输入</describe>
 	    </kafka>
@@ -69,16 +73,16 @@
     <dataSource>
    		<kafakaOut>
 	        <topic>merge</topic>
-	        <brokers>dmp001:9092,dmp002:9092,dmp003:9092</brokers>
+	        <brokers>localhost:9092</brokers>
 	        <separator>kafkaAsiainfoMixSeparator</separator>
 	        <describe>各类型log经流处理后，重定向的kafka topic.</describe>
 		</kafakaOut>
-		<dbSource>
-			<driver>com.mysql.jdbc.Driver</driver>
-			<url>jdbc:mysql://rdsz3yvjiz3yvji.mysql.rds.aliyuncs.com:3306/dmp_console_test</url>
-			<user>dmp_console_test</user>
-			<password>a25a_Uagq</password>
-		</dbSource>
+                <dbSource>
+			 <driver>com.mysql.jdbc.Driver</driver>
+                         <url>jdbc:mysql://rdsz3yvjiz3yvji.mysql.rds.aliyuncs.com:3306/dmp_console_test</url>
+                         <user>dmp_console_test</user>
+                         <password>a25a_Uagq</password>
+             	 </dbSource>
 	</dataSource>	
 	<logProperties>	
 		<describe>
@@ -97,9 +101,9 @@
 			<describe></describe>
 		</log>
 		<log>
-			<topicLogType>expose</topicLogType>
+			<topicLogType>exposetest</topicLogType>
 			<logSpace>15</logSpace>
-			<items>log_length,log_version,log_time,cost,expose_id,ad_id,order_id,activity_id,exchange_uid,user_gender,cookie,source,client_id,user_agent,media_url,represent_type,represent_pos,page_type,interest_type,area_id,size_id,ad_pos_id,bit_time</items>
+			<items>log_length,log_version,log_time,cost,expose_id,ad_id,order_id,activity_id,exchange_uid,user_gender,cookie,source,client_id,user_agent,media_url,represent_type,represent_pos,page_type,interest_type,area_id,size_id,ad_pos_id,bid_time</items>
 			<itemsDescribe>日志长度,日志版本,日志时间,cost,曝光id,广告id,订单id,活动id,ex_uid,性别,cookie,流量来源,客户端ip,ua,referer,展现类型,展示位置,页面分类,用户兴趣,地域id,尺寸id,广告位id,竞价时间</itemsDescribe>
 			<rowKey>log_time,ad_id,order_id,activity_id,media_url,area_id,size_id,represent_pos</rowKey>
 			<describe></describe>

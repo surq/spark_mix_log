@@ -1,52 +1,54 @@
-package com.asiainfo.mix.log.impl
+package com.asiainfo.mix.spark.impl
 
-import com.asiainfo.mix.streaming_log.StreamAction
 import org.apache.spark.SparkConf
-import org.apache.spark.streaming.StreamingContext._
-import org.apache.spark.streaming.dstream.DStream
+import org.apache.spark.SparkContext._
 import com.asiainfo.mix.streaming_log.LogTools
 import org.apache.spark.Logging
 import scala.collection.mutable.ArrayBuffer
 import com.asiainfo.spark.stream.report.LogReportUtil
+import com.asiainfo.mix.spark.BatchStream
+import org.apache.spark.rdd.RDD
+import com.asiainfo.mix.spark.XmlProperiesAnalysis
+import com.asiainfo.mix.spark.MixLog
 
 /**
  * @author surq
- * @since 2014.07.15
- * 点击日志 流处理
+ * @since 2014.09.25
+ * 点击日志 batch处理
  */
-class ClickAnalysis extends StreamAction with Serializable {
+class ClickAnalysis extends BatchStream  with MixLog with Serializable {
 
   /**
-   * @param inputStream:log流数据<br>
-   * @param xmlParm:解析logconf.xml的结果顺序依次是:<br>
-   * 0、kafaArray---[configuration/dataSource/kafakaOut]<br>
-   * 1、dbSourceArray----[configuration/dataSource/dbSource]<br>
-   * 2、mixLogArray----[configuration/logProperties/log]<br>
-   * 3、tablesArray----[configuration/tableDefines/table]<br>
+   * @param topicLogType:日志类型<br>
+   * @param inputRDD:数据源<br>
    */
-  override def run(inputStream: DStream[Array[(String, String)]], xmlParm: Seq[Array[(String, String)]]): DStream[String] = {
+  override def run(topicLogType:String, inputRDD: RDD[Array[(String, String)]]): RDD[String] = {
     printInfo(this.getClass(), "ClickAnalysis is running!")
-    val kafaMap = xmlParm(0).toMap
-    val logPropertiesMap = xmlParm(2).toMap
-    val tablesMap = xmlParm(3).toMap
+    
+    // properiesMap:applacation properies 配置<br>
+    // HDFSfilePathMap:输入日志文件类型以及路径(HDFS)配置<br>
+    // dbSourceMap:db(mysql) 驱动配置<br>
+    // logStructMap：log 日志属性配置<br>
+    // tablesDefMap：mysql表定义配置<br>
+    val properties = XmlProperiesAnalysis.xmlProperiesAnalysis
+    val properiesMap = properties._1
+    val logStructMap = properties._4
+    val tablesMap = properties._5
 
-    // 输出kafka配置 
-    val kafkaseparator = kafaMap("separator")
-    val brokers = kafaMap("brokers")
-    val topic = kafaMap("topic")
-
+    //日志文件属性相关获取
+    val logPropertiesMap = logStructMap(topicLogType)
     // log数据主key
     val keyItems = logPropertiesMap("rowKey").split(",")
     // 划分rowkey 用
-    val logSpace = logPropertiesMap("logSpace")
-
+    val logSpace = properiesMap("logSpace")
     //输出为表结构样式　用
     val tbItems = tablesMap("items").split(",")
     // rowkey 连接符
     val separator = "asiainfoMixSeparator"
-    val thistopic =logPropertiesMap("topicLogType").trim
-    val splitNum = "splitNum"
-    inputStream.map(record => {
+    // 各文件流联合成同一个RDD时，用的共通分隔符
+    val unionseparator = properiesMap("unionseparator")
+    
+    inputRDD.map(record => {
       val itemMap = record.toMap
       printDebug(this.getClass(), "source DStream:" + itemMap.mkString(","))
       val keyMap = (for { key <- keyItems } yield (key, itemMap(key))).toMap
@@ -58,17 +60,12 @@ class ClickAnalysis extends StreamAction with Serializable {
       var dbrecord = Map[String, String]()
       // 流计算
       dbrecord += (("click_cnt") -> count.toString)
-
       // 顺列流字段为db表结构字段
-      var mesgae = LogTools.setTBSeq(f._1, tbItems, dbrecord, kafkaseparator)
-
-      //　第一个字段log_length（为merge结构字段数）　第二个字段rowKey
+      var mesgae = LogTools.setTBSeq(f._1, tbItems, dbrecord, unionseparator)
+      // 第一个字段rowKey ;最后一个字段log_length（为merge结构字段数）
       val merge_size = tbItems.size + 2
-      mesgae = mesgae + kafkaseparator + merge_size.toString
-      // kafa send
-      LogTools.kafkaSend(mesgae, brokers, topic)
-      printDebug(this.getClass(), "to kafka topic merge data: " + mesgae)
-      f._1
+      mesgae = mesgae + unionseparator + merge_size.toString
+      mesgae
     })
   }
 

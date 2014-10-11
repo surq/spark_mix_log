@@ -1,7 +1,8 @@
-package com.asiainfo.mix.log.impl
+package com.asiainfo.mix.spark.impl
 
 import com.asiainfo.mix.streaming_log.StreamAction
 import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext._
 import org.apache.spark.streaming.StreamingContext._
 import org.apache.spark.streaming.dstream.DStream
 import com.asiainfo.mix.streaming_log.LogTools
@@ -9,50 +10,47 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.Logging
 import com.asiainfo.spark.stream.report.LogReportUtil
 import java.util.Calendar
+import org.apache.spark.rdd.RDD
+import com.asiainfo.mix.spark.XmlProperiesAnalysis
+import com.asiainfo.mix.spark.BatchStream
 
 /**
  * @author surq
- * @since 2014.07.15
- * 汇总日志更新mysql 流处理
+ * @since 2014.09.25
+ * @param rdds:各类型log处理完成后的rdd<br>
+ * 汇总日志更新mysql 流处理<br>
  */
-class MergeLogAnalysis extends StreamAction with Serializable {
+class MergeLogAnalysis(rdds: RDD[String]) extends Serializable {
 
   /**
-   * @param inputStream:log流数据<br>
-   * @param xmlParm:解析logconf.xml的结果顺序依次是:<br>
-   * 0、kafaArray---[configuration/dataSource/kafakaOut]<br>
-   * 1、dbSourceArray----[configuration/dataSource/dbSource]<br>
-   * 2、mixLogArray----[configuration/logProperties/log]<br>
-   * 3、tablesArray----[configuration/tableDefines/table]<br>
+   * union rdd后的rdd计划处理<br>
    */
-  override def run(inputStream: DStream[Array[(String, String)]], xmlParm: Seq[Array[(String, String)]]): DStream[String] = {
-    printInfo(this.getClass(), "MergeLogAnalysis is running!")
-    val kafaMap = xmlParm(0).toMap
-    val dbSourceArray = xmlParm(1)
-    val logPropertiesMap = xmlParm(2).toMap
-    val tablesMap = xmlParm(3).toMap
+  def merge: RDD[String] = {
 
-    // 输出kafka配置 
-    val kafkaseparator = kafaMap("separator")
+    // properiesMap:applacation properies 配置<br>
+    // HDFSfilePathMap:输入日志文件类型以及路径(HDFS)配置<br>
+    // dbSourceMap:db(mysql) 驱动配置<br>
+    // logStructMap：log 日志属性配置<br>
+    // tablesDefMap：mysql表定义配置<br>
+    val properties = XmlProperiesAnalysis.xmlProperiesAnalysis
+    val properiesMap = properties._1
+    val dbSourceArray = properties._3
+    val logPropertiesMap = properties._4
+    val tablesMap = properties._5
+    // 各文件流联合成同一个RDD时，用的共通分隔符
+    val unionseparator = properiesMap("unionseparator")
+    // 日志记录在数据库中的时间间隔，时间间隔在logSpace内的将在db中产生一条，从业务上讲所有log类型的logSpace应该是一致的（单位：分钟）
+    val logSpace = properiesMap("logSpace")
     // rowkey 连接符
     val separator = "asiainfoMixSeparator"
 
-    // 计算记录时间
-    val logSpace = logPropertiesMap("logSpace")
-
     //输出为表结构样式　用
     val tbname = tablesMap("tableName")
-    val thistopic = logPropertiesMap("topicLogType").trim
-    val splitNum = "splitNum"
-
-    // spark监控系统用
-    // param（［kafka brokers］，［监控系统所占用的topic名称］，［所监控的topic］，［监控日志所用分隔符］）
-    val reportEnv: Seq[String] = Seq(kafaMap("brokers"), "report", thistopic, "%")
-    val classname = this.getClass().getName()
-    
-    inputStream.map(record => {
+    val items = "rowKey," + tablesMap("items") + ",log_length"
+    rdds.map(f => {
+      (items.split(",")).zip(f.split(unionseparator))
+    }).map(record => {
       val itemMap = record.toMap
-      printDebug(this.getClass(), "source DStream:" + itemMap.mkString(","))
       val rowKey = itemMap("rowKey")
       (rowKey, record)
     }).groupByKey.map(f => {
@@ -96,13 +94,11 @@ class MergeLogAnalysis extends StreamAction with Serializable {
       selectKeyArray += (("ad_pos_id") -> keyarray(7))
       selectKeyArray += (("start_time") -> logdate._1)
       selectKeyArray += (("end_time") -> logdate._2)
-      printDebug(this.getClass(), "db updata before: " + dbrecord.mkString(","))
       val tuple3: Tuple3[String, Map[String, String], ArrayBuffer[(String, String)]] = (f._1, dbrecord, selectKeyArray)
       tuple3
-    }).mapPartitions(LogReportUtil.monitor(_, reportEnv, Seq(classname, "3-groupByKey_map_after"))).mapPartitions(mp => {
+    }).mapPartitions(mp => {
       val starttime_sql = Calendar.getInstance().getTimeInMillis()
-    
-      val connection = LogTools.getConnection(dbSourceArray)
+      val connection = LogTools.getConnection(dbSourceArray.toArray)
       var count = 0l
       val tmpList: ArrayBuffer[String] = ArrayBuffer[String]()
       for (patition <- mp) {
@@ -115,12 +111,8 @@ class MergeLogAnalysis extends StreamAction with Serializable {
         LogTools.updataMysql(tbname, connection, selectKeyArray.toArray, dbrecord.toArray)
       }
       LogTools.closeConnection(connection)
-      // TODO
-      val perRecord_sqltime =(Calendar.getInstance().getTimeInMillis() - starttime_sql)/count
-      LogReportUtil.kafkaSend("per record need time:"+perRecord_sqltime.toString, kafaMap("brokers"), "report")
-      
       tmpList.iterator
-    }).map(f => {f})
+    }).map(f => { f })
   }
 
   /**

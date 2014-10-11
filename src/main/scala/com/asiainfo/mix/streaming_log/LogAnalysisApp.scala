@@ -4,11 +4,14 @@ import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.Logging
 import scala.xml.XML
 import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext._
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.Seconds
 import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.streaming.dstream.DStream
 import scala.beans.BeanProperty
+import com.asiainfo.spark.stream.report.LogReportUtil
+import java.util.Calendar
 
 /**
  * @author surq
@@ -25,7 +28,6 @@ import scala.beans.BeanProperty
 object LogAnalysisApp {
 
   def main(args: Array[String]): Unit = {
-
     if (args.length != 1) {
       System.err.println("Usage: <topic>")
       return
@@ -54,6 +56,7 @@ object LogAnalysisApp {
     val topic = (kafkaTopics \ "topic").text.toString.trim
     val appClass = (kafkaTopics \ "appClass").text.toString.trim
     val streamSpace = (kafkaTopics \ "streamSpace").text.toString.trim
+    val batchSplitSpace = (kafkaTopics \ "batchSplitSpace").text.toString.trim
     var separator = (kafkaTopics \ "separator").text.toString
     val describe = (kafkaTopics \ "describe").text.toString.trim
     // kafka流数据字段分隔符，空时黙认为［0x02］
@@ -129,31 +132,46 @@ object LogAnalysisApp {
     tablesArray += ("describe" -> tb_describe)
 
     // TODO
-    //    val master = "local[2]"
-    //    val ssc = new StreamingContext(master, appName, Seconds(streamSpace.toInt), System.getenv("SPARK_HOME"))
+        val master = "local[2]"
+        val ssc = new StreamingContext(master, appName, Seconds(streamSpace.toInt), System.getenv("SPARK_HOME"))
+    // report用
+    val kafaMap = kafaArray.toMap
+    val reportTopic = "report"
+//    val sparkConf = new SparkConf().setAppName(appName)
+//    sparkConf.set("spark.streaming.blockInterval", batchSplitSpace)
+//    val ssc = new StreamingContext(sparkConf, Seconds(streamSpace.toInt))
 
-    val sparkConf = new SparkConf().setAppName(appName)
-    val ssc = new StreamingContext(sparkConf, Seconds(streamSpace.toInt))
+//    val accum = sc.accumulator(0)
+    // spark监控系统用
+    // param（［kafka brokers］，［监控系统所占用的topic名称］，［所监控的topic］，［监控日志所用分隔符］）
+    val reportEnv: Seq[String] = Seq(kafaMap("brokers"), "report", topic, "%")
+    val classname = this.getClass().getName()
+    val job_id = ssc.sparkContext.accumulator(0).value.toString
+    
     val stream = (1 to consumerNum.toInt).map(_ => KafkaUtils.createStream(ssc, zkQuorum, "test-consumer-group", Map(topic -> 1)).asInstanceOf[DStream[(String, String)]]).reduce(_.union(_))
-    val inputStream: DStream[Array[(String, String)]] = stream.map(f => {
-      var data = f._2 + separator + "MixSparkLogEndSeparator"
-      val recodeList = data.split(separator)
-      val recode = (for { index <- 0 until recodeList.size - 1 } yield (recodeList(index))).toArray
-      val keyValueArray = (items.split(",")).zip(recode)
-      printDebug("from topic:" + topic + " record: " + keyValueArray.mkString(","))
-      keyValueArray
-    }).filter(f => {
-      val temMap = f.toMap
-      // 有误的log日志数据
-      if (topic != "merge" && temMap("log_length").trim != (temMap.size).toString) {
-        printWRANNING("日志数据字段个数有误［实际字段数=" + temMap.size + "]" + f.mkString(","))
-        false
-      } else true
-    })
+    val inputStream: DStream[Array[(String, String)]] = stream.mapPartitions(LogReportUtil.monitor(_, reportEnv, Seq(job_id,classname, "1-createStream")))
+      .map(f => {
+        var data = f._2 + separator + "MixSparkLogEndSeparator"
+        val recodeList = data.split(separator)
+        val recode = (for { index <- 0 until recodeList.size - 1 } yield (recodeList(index))).toArray
+        val keyValueArray = (items.split(",")).zip(recode)
+        printDebug("from topic:" + topic + " record: " + keyValueArray.mkString(","))
+        keyValueArray
+      }).filter(f => {
+        val temMap = f.toMap
+        // 有误的log日志数据
+        if (topic != "merge" && temMap("log_length").trim != (temMap.size).toString) {
+          printWRANNING("日志数据字段个数有误［实际字段数=" + temMap.size + "]" + f.mkString(","))
+          false
+        } else {
+          // TODO
+          printWRANNING("日志数据字段个数Pass")
+          true
+        }
+      }).mapPartitions(LogReportUtil.monitor(_, reportEnv, Seq(job_id,classname, "2-log_length_filter_after")))
     val clz = Class.forName(appClass)
     val constructors = clz.getConstructors()
     val constructor = constructors(0).newInstance()
-
     val outputStream = constructor.asInstanceOf[StreamAction].run(inputStream, Seq(kafaArray.toArray, dbSourceArray.toArray, mixLogArray.toArray, tablesArray.toArray))
     outputStream.saveAsTextFiles("/spark_log/sourcelog/" + topic + "/" + topic, "log")
     ssc.start()

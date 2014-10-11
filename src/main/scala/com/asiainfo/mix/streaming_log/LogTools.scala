@@ -8,18 +8,15 @@ import java.net.Socket
 import java.io.DataOutputStream
 import java.io.IOException
 import org.apache.spark.Logging
-import scala.io.Source
 import java.io.FileWriter
 import java.util.Calendar
 import java.io.File
-import scala.beans.BeanProperty
-import java.text.SimpleDateFormat
-import java.text.DecimalFormat
 import scala.collection.mutable.ArrayBuffer
 import java.sql.SQLException
+import java.sql.Connection
+import com.mysql.jdbc.PreparedStatement
 
-
-object LogTools extends Logging {
+object LogTools extends Logging with Serializable {
 
   /**
    * 创建日志写文件，写入器FileWriter
@@ -85,34 +82,45 @@ object LogTools extends Logging {
   }
 
   /**
+   * @param dbSourceArray:数据库驱动<br>
+   * @retun Connection db连结<br>
+   */
+  def getConnection(dbSourceArray: Array[(String, String)]): Connection = {
+
+    val dbSourceMap = dbSourceArray.toMap
+    Class.forName(dbSourceMap("driver"))
+    DriverManager.getConnection(dbSourceMap("url"), dbSourceMap("user"), dbSourceMap("password"))
+  }
+
+  /**
    * 更新mysql表<br>
    * @param tbname:mysql表名<br>
    * @param tbstructArray:表结构[字段：字段类型]<br>
    * @param dbSourceArray:数据库驱动<br>
    * @param selectKeyArray:查询字段键值对<br>
-   * @param record:包函tbname的所有字段的键值对<br>
+   * @param record:包函tbname的所要更新的字段和主键键值对<br>
    */
-  def updataMysql(tbname: String, dbSourceArray: Array[(String, String)], selectKeyArray: Array[(String, String)], record: Array[(String, String)]) {
+  def updataMysql(tbname: String, connection: Connection, selectKeyArray: Array[(String, String)], record: Array[(String, String)]) {
 
-    val dbSourceMap = dbSourceArray.toMap
     val recordMap = record.toMap
-    Class.forName(dbSourceMap("driver"))
-    val exceptionStr = selectKeyArray.mkString(",")+record.mkString(",")
-    
-    val conn = DriverManager.getConnection(dbSourceMap("url"), dbSourceMap("user"), dbSourceMap("password"))
-
+    val exceptionStr = selectKeyArray.mkString(",") + record.mkString(",")
     try {
-      val stmt = conn.createStatement()
-      //查询条件 (主键部分若为空则当“0”处理)
-      val whereExp = (for (f <- selectKeyArray) yield f._1 + "='" + (if(f._2.trim == "")"0" else f._2 )+ "'").mkString(" and ")
+      //查询条件拼接
+      val whereExp = (for (f <- selectKeyArray) yield f._1 + "=?").mkString(" and ")
       // 要更新字段(除主key)
       val updataKeys = (for (f <- record if !selectKeyArray.contains(f)) yield f._1)
       val updatedColExp = updataKeys.mkString(",")
 
       val sqlstr = "select " + updatedColExp + " from " + tbname + " where " + whereExp
-      mixInfo(LogTools.getClass().getName() + " INFO: 查询语句：" + sqlstr)
-      val rs = stmt.executeQuery(sqlstr)
+      val st = connection.prepareStatement(sqlstr)
+      //设定查询条件 (主键部分若为空则当“0”处理)
+      val selectkeycount = selectKeyArray.size
+      for (index <- 1 to selectkeycount; arrayindex = index - 1) {
+        st.setString(index, (if (selectKeyArray(arrayindex)._2.trim == "") "0" else selectKeyArray(arrayindex)._2))
+      }
 
+      mixInfo(LogTools.getClass().getName() + " INFO: 查询语句：" + sqlstr + selectKeyArray.mkString("separator"))
+      val rs = st.executeQuery()
       // 判断查询结果有无数据
       var dbvalueMap = Map[String, String]()
       var updata_flag = true
@@ -125,51 +133,54 @@ object LogTools extends Logging {
         }
         if (dbvalueMap.size > 0) updata_flag = true else updata_flag = false
       }
-      var exec_sql_str = ""
       if (!updata_flag) {
         // insert
         val insertColsExp = (for (f <- record) yield f._1).mkString(",")
-        // 如果主key字段为空时，变为"0"
-        val insertvaluesExp = (for (f <- record) yield (if (f._2.trim=="")"0" else f._2)).mkString("'", "','", "'")
-        exec_sql_str = "insert into " + tbname + "(" + insertColsExp + ") values (" + insertvaluesExp + ")"
-      } else {
+        val insert_str = "insert into " + tbname + "(" + insertColsExp + ") values (" + (for { i <- 0 until record.length } yield "?").mkString(",") + ")"
 
+        val insertStatement = connection.prepareStatement(insert_str)
+        // 设定insert　items values
+        for (index <- 1 to record.length; arrayindex = index - 1) {
+          // 如果主key字段为空时，变为"0"
+          insertStatement.setString(index, (if (record(arrayindex)._2.trim == "") "0" else record(arrayindex)._2))
+        }
+        mixInfo(LogTools.getClass().getName() + " INFO: 操作语句[insert]：" + insert_str + record.mkString("separator"))
+        insertStatement.executeUpdate()
+      } else {
+        // update
         //　去除主key部分
         val value = for { item <- record if (!selectKeyArray.contains(item)) } yield (item)
         value.foreach(f => { dbvalueMap += (f._1 -> (((dbvalueMap.getOrElse(f._1, "0")).toFloat + (f._2).toFloat).toString).replace(".0$", "")) })
         val dbvalueArray = dbvalueMap.toArray
-        // update
-        exec_sql_str = "update " + tbname + " set " + (for { item <- dbvalueArray } yield (item._1 + "='" + item._2 + "'")).mkString(" , ") + " where " + whereExp
+        val update_str = "update " + tbname + " set " + (for { item <- dbvalueArray } yield (item._1 + "=?")).mkString(" , ") + " where " + whereExp
+
+        val updateStatement = connection.prepareStatement(update_str)
+        val updatekeycount = dbvalueArray.size
+        // 赋值(update key-value)
+        for (index <- 1 to updatekeycount; arrayindex = index - 1) {
+          updateStatement.setString(index, dbvalueArray(arrayindex)._2)
+        }
+        //whereExp 查询条件 (主键部分若为空则当“0”处理)
+        for (index <- updatekeycount + 1 to selectkeycount + updatekeycount; arrayindex = index - updatekeycount - 1) {
+          updateStatement.setString(index, (if (selectKeyArray(arrayindex)._2.trim == "") "0" else selectKeyArray(arrayindex)._2))
+        }
+
+        mixInfo(LogTools.getClass().getName() + " INFO: 操作语句[update]：" + update_str + dbvalueArray.mkString("separator"))
+        updateStatement.executeUpdate()
       }
-      mixInfo(LogTools.getClass().getName() + " INFO: 操作语句：" + exec_sql_str)
-      stmt.executeUpdate(exec_sql_str)
     } catch {
-      case sqlEx: SQLException => mixError(exceptionStr,sqlEx.printStackTrace())
-      case ex: Exception => mixError(exceptionStr,ex.printStackTrace())
-    } finally {
-      conn.close()
+      case sqlEx: SQLException => mixError(exceptionStr, sqlEx.printStackTrace())
+      case ex: Exception => mixError(exceptionStr, ex.printStackTrace())
     }
   }
-  
+
   /**
-   * @author马继
-   * 守护进程
+   * @param dbSourceArray:数据库驱动<br>
+   * @retun Connection db连结<br>
    */
-  def heartBeat(topic: String) {
-    try {
-      val PORT = 4848
-      val nowtime = System.currentTimeMillis() / 1000
-      val ia = InetAddress.getByName("localhost")
-      val socket = new Socket(ia, PORT)
-      val out = new DataOutputStream(socket.getOutputStream())
-      val hbstring = nowtime + ":this is from" + topic + "StreamingAPP"
-      out.writeUTF(hbstring)
-      out.flush()
-      out.close()
-      socket.close()
-    } catch {
-      case e: IOException =>
-        e.printStackTrace()
+  def closeConnection(conn: Connection) {
+    if (conn != null) {
+      conn.close()
     }
   }
 
@@ -195,10 +206,11 @@ object LogTools extends Logging {
   /**
    * log 打印
    */
+  def mixDebug(msg: String) = { log.debug(msg) }
   def mixInfo(msg: String) = { log.info(msg) }
-  def mixDebug(msg: String) = { if (true) log.debug(msg) }
+  def mixWranning(msg: String) = { log.warn(msg) }
   def mixError(msg: String) = { log.error(msg) }
-  def mixError(msg: String,u:Unit) = { log.error(msg, u) }
+  def mixError(msg: String, u: Unit) = { log.error(msg, u) }
 
   /**
    * 字符串分隔为定长的array<br>
