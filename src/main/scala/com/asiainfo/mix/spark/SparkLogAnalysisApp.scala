@@ -91,7 +91,7 @@ object SparkLogAnalysisApp extends MixLog {
         })
         val rddlink = rdds.reduce(_.union(_))
         executor(rddlink, historyRddWriter, historyRddFile)
-      } else if (rddQueue.size() > 1) {
+      } else if (rddQueue.size() > 0) {
         var historyRddFile = ""
         val rdds = 1 to rddQueue.size() map (f => {
           val frdd = rddQueue.take
@@ -102,9 +102,7 @@ object SparkLogAnalysisApp extends MixLog {
         val rddlink = rdds.reduce(_.union(_))
         executor(rddlink, historyRddWriter, historyRddFile)
       } else {
-        val frdd = rddQueue.take
         // 已处理过的文件要做备份，以备宕机，重新加载时不被重复
-        executor(frdd._2, historyRddWriter, frdd._1 + System.getProperty("line.separator"))
         val rdd = rddQueue.take
         executor(rdd._2, historyRddWriter, rdd._1 + System.getProperty("line.separator"))
       }
