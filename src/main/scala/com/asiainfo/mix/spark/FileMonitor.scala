@@ -27,11 +27,11 @@ import java.io.IOException
  * @param lbqHdfsFile:新增加的文件全部押在此队列中<br>
  * 注：此监控就文件级的，只对文件增减做监控，不对文件内容修改做监控<br>
  */
-class FileMonitor(historyrddMap:Map[String, ArrayBuffer[String]],topicLogType: String, locallogpath: String, hdfsPaht: String, scanInterval: Long, lbqHdfsFile: LinkedBlockingQueue[String]) extends Runnable with MixLog {
+class FileMonitor(historyrddMap: Map[String, ArrayBuffer[String]], topicLogType: String, locallogpath: String, hdfsPaht: String, scanInterval: Long, lbqHdfsFile: LinkedBlockingQueue[String]) extends Runnable with MixLog {
 
   val conf = new Configuration()
   //local test 用
-//  conf.addResource(new Path("conf/core-site.xml"))
+  //  conf.addResource(new Path("conf/core-site.xml"))
   val HDFSFileSytem = FileSystem.get(conf)
 
   // 内存中维持的一个文件，文件夹关联的map
@@ -76,7 +76,7 @@ class FileMonitor(historyrddMap:Map[String, ArrayBuffer[String]],topicLogType: S
         val key = f._1
         val value = f._2
         value.foreach(f => {
-          logwriter.write(("新增文件：" +Util.getNowTime+"	" + f + System.getProperty("line.separator")))
+          logwriter.write(("新增文件：" + Util.getNowTime + "	" + f + System.getProperty("line.separator")))
           logwriter.flush
         })
       })
@@ -121,44 +121,49 @@ class FileMonitor(historyrddMap:Map[String, ArrayBuffer[String]],topicLogType: S
    * 2、扫出新文件：置换baseFolderMap对应的key（文件夹名）的value，并把新增的文件追加到打描结果表［scanModifyFolderMap］<br>
    */
   def fileScanner(hdfsPath: Path) {
-    val baseFolderInfo = baseFolderMap.getOrElse(hdfsPath.toString(), null)
-    val scanfolderModifyTime = HDFSFileSytem.getFileStatus(hdfsPath).getModificationTime()
-    // baseFolderInfo == null 说明是新增文件夹；新扫描的文件夹最后修改时间，跟对照表［baseFolderMap］中的修改时间不一致说明本目录中有文件增减
+    try {
 
-    val fileList = ArrayBuffer[String]()
-    val status = HDFSFileSytem.listStatus(hdfsPath);
-    status.foreach(f => {
-      if (f.isDir) {
-        // baseFolderInfo == null 说明是新增文件夹；
-        if (baseFolderMap.getOrElse(f.getPath().toString(), null) == null) fileScanner(f.getPath())
-      } else fileList += f.getPath.toString
-    })
+      val baseFolderInfo = baseFolderMap.getOrElse(hdfsPath.toString(), null)
+      val scanfolderModifyTime = HDFSFileSytem.getFileStatus(hdfsPath).getModificationTime()
+      // baseFolderInfo == null 说明是新增文件夹；新扫描的文件夹最后修改时间，跟对照表［baseFolderMap］中的修改时间不一致说明本目录中有文件增减
 
-    if (baseFolderInfo == null) {
-      // 把新增文件压入队列
-      putQueue(fileList)
-      // 更新扫描变更结果文件：scanModifyFolderMap
-      scanModifyFolderMap += (hdfsPath.toString -> fileList)
-      //重置此path下变更后的内容
-      baseFolderMap += (hdfsPath.toString -> (scanfolderModifyTime, fileList.mkString.hashCode, fileList))
-    } else {
-      // 目录有文件增减
-      // 文件列表hashcode有变化说明文件有增减
-      if (baseFolderInfo._2 != fileList.mkString.hashCode) {
-        // 文件列表的hashcode不一致说明是新增减了文件，相等说明是子目录的增加或子目录文件增加导致
-        val basetArray = baseFolderInfo._3
-        // 文件夹内有加文件操作
-        val addindex = for (index <- 0 until fileList.size if (!basetArray.contains(fileList(index)))) yield (index)
-        // 选出新增文件列表
-        val addfileList = ArrayBuffer[String]()
-        addindex.foreach(addfileList += fileList(_))
+      val fileList = ArrayBuffer[String]()
+      val status = HDFSFileSytem.listStatus(hdfsPath);
+      status.foreach(f => {
+        if (f.isDir) {
+          // baseFolderInfo == null 说明是新增文件夹；
+          if (baseFolderMap.getOrElse(f.getPath().toString(), null) == null) fileScanner(f.getPath())
+        } else fileList += f.getPath.toString
+      })
+
+      if (baseFolderInfo == null) {
         // 把新增文件压入队列
-        putQueue(addfileList)
+        putQueue(fileList)
         // 更新扫描变更结果文件：scanModifyFolderMap
-        scanModifyFolderMap += (hdfsPath.toString -> addfileList)
+        scanModifyFolderMap += (hdfsPath.toString -> fileList)
         //重置此path下变更后的内容
-        baseFolderMap += (hdfsPath.toString -> (scanfolderModifyTime, addfileList.mkString.hashCode, fileList))
+        baseFolderMap += (hdfsPath.toString -> (scanfolderModifyTime, fileList.mkString.hashCode, fileList))
+      } else {
+        // 目录有文件增减
+        // 文件列表hashcode有变化说明文件有增减
+        if (baseFolderInfo._2 != fileList.mkString.hashCode) {
+          // 文件列表的hashcode不一致说明是新增减了文件，相等说明是子目录的增加或子目录文件增加导致
+          val basetArray = baseFolderInfo._3
+          // 文件夹内有加文件操作
+          val addindex = for (index <- 0 until fileList.size if (!basetArray.contains(fileList(index)))) yield (index)
+          // 选出新增文件列表
+          val addfileList = ArrayBuffer[String]()
+          addindex.foreach(addfileList += fileList(_))
+          // 把新增文件压入队列
+          putQueue(addfileList)
+          // 更新扫描变更结果文件：scanModifyFolderMap
+          scanModifyFolderMap += (hdfsPath.toString -> addfileList)
+          //重置此path下变更后的内容
+          baseFolderMap += (hdfsPath.toString -> (scanfolderModifyTime, addfileList.mkString.hashCode, fileList))
+        }
       }
+    } catch {
+      case e: Exception => println(this.getClass().getName() + ".fileScanner:Exception!"); e.printStackTrace();
     }
   }
 
@@ -175,39 +180,43 @@ class FileMonitor(historyrddMap:Map[String, ArrayBuffer[String]],topicLogType: S
    * 装载基准表［baseFolderMap］和打描结果表［scanModifyFolderMap］<br>
    */
   def initLoad(hdfsPath: Path) {
-    val folderInfo = HDFSFileSytem.getFileStatus(hdfsPath)
-    val modifyTime = folderInfo.getModificationTime
-    val fileList = ArrayBuffer[String]()
-    val status = HDFSFileSytem.listStatus(hdfsPath);
-    status.foreach(f => {
-      if (f.isDir) initLoad(f.getPath()) else {
-        // 已有历史记录，非初次处理(重启操作)
-        if (historyrddMap.size > 0) {
-          var hdpath =hdfsPath.toString
-          if (!hdpath.startsWith("hdfs://")) {
-            // 拼接HDFS文件系统名称［hdfs://localhost:port］
-            hdpath = (HDFSFileSytem.getUri()).toString + hdpath
-          }
-          // 历史记录中没有处理过此条
-          if (historyrddMap.getOrElse(hdpath, null) == null) {
-            // 整个文件夹都没有
-            fileList += f.getPath.toString
+    try {
+      val folderInfo = HDFSFileSytem.getFileStatus(hdfsPath)
+      val modifyTime = folderInfo.getModificationTime
+      val fileList = ArrayBuffer[String]()
+      val status = HDFSFileSytem.listStatus(hdfsPath);
+      status.foreach(f => {
+        if (f.isDir) initLoad(f.getPath()) else {
+          // 已有历史记录，非初次处理(重启操作)
+          if (historyrddMap.size > 0) {
+            var hdpath = hdfsPath.toString
+            if (!hdpath.startsWith("hdfs://")) {
+              // 拼接HDFS文件系统名称［hdfs://localhost:port］
+              hdpath = (HDFSFileSytem.getUri()).toString + hdpath
+            }
+            // 历史记录中没有处理过此条
+            if (historyrddMap.getOrElse(hdpath, null) == null) {
+              // 整个文件夹都没有
+              fileList += f.getPath.toString
+            } else {
+              val list = historyrddMap(hdpath)
+              // 此文件夹下已有数据被处理过，但此文件未被处理
+              if (!list.contains(f.getPath.toString)) fileList += f.getPath.toString
+            }
           } else {
-            val list = historyrddMap(hdpath)
-            // 此文件夹下已有数据被处理过，但此文件未被处理
-            if (!list.contains(f.getPath.toString)) fileList += f.getPath.toString
+            // 初次启动
+            fileList += f.getPath.toString
           }
-        } else {
-          // 初次启动
-          fileList += f.getPath.toString
         }
-      }
-    })
-    val hashcode = fileList.mkString.hashCode()
-    baseFolderMap += (hdfsPath.toString -> (modifyTime, fileList.mkString.hashCode, fileList))
-    // 把新增文件压入队列
-    putQueue(fileList)
-    scanModifyFolderMap += (hdfsPath.toString -> fileList)
+      })
+      val hashcode = fileList.mkString.hashCode()
+      baseFolderMap += (hdfsPath.toString -> (modifyTime, fileList.mkString.hashCode, fileList))
+      // 把新增文件压入队列
+      putQueue(fileList)
+      scanModifyFolderMap += (hdfsPath.toString -> fileList)
+    } catch {
+      case e: Exception => println(this.getClass().getName() + ".initLoad:Exception!"); e.printStackTrace();
+    }
   }
 
   /**

@@ -27,6 +27,11 @@ object SparkLogAnalysisApp extends MixLog {
    * tablesDefMap：mysql表定义配置<br>
    */
   def main(args: Array[String]): Unit = {
+    try {
+      
+    }catch {
+      case e: Exception => println(this.getClass().getName() + ".fileScanner:Exception!"); e.printStackTrace();
+    }
 
     // xml解析
     XmlProperiesAnalysis.getXmlProperies
@@ -51,7 +56,7 @@ object SparkLogAnalysisApp extends MixLog {
     // 最新历史记录文件拧成的hash路径树
     val historyrddMap = historyInfo._2
     println("历史处理文件加载[INFO:]" + historyFile)
-    
+
     // 去除历史记录文件中HDFS文件系统中已不存在的文件
     Util.del_Hdfs_NotExist(historyrddMap)
     // 重新生成历史记录文件列表
@@ -81,31 +86,30 @@ object SparkLogAnalysisApp extends MixLog {
     })
     println(this.getClass().getName() + "[INFO:]" + "spark batch初期准备全部完成,等待执行任务！")
     while (true) {
+      var historyRddFile = ""
+      var rddLinks = IndexedSeq[RDD[String]]()
       if (rddQueue.size() >= unionRDD_count) {
-        var historyRddFile = ""
-        val rdds = 1 to unionRDD_count map (f => {
+        rddLinks = 1 to unionRDD_count map (f => {
           val frdd = rddQueue.take
           // 已处理过的文件要做备份，以备宕机，重新加载时不被重复
           historyRddFile = historyRddFile + frdd._1 + System.getProperty("line.separator")
           frdd._2
         })
-        val rddlink = rdds.reduce(_.union(_))
-        executor(rddlink, historyRddWriter, historyRddFile)
       } else if (rddQueue.size() > 0) {
-        var historyRddFile = ""
-        val rdds = 1 to rddQueue.size() map (f => {
+        rddLinks = 1 to rddQueue.size() map (f => {
           val frdd = rddQueue.take
           // 已处理过的文件要做备份，以备宕机，重新加载时不被重复
           historyRddFile = historyRddFile + frdd._1 + System.getProperty("line.separator")
           frdd._2
         })
-        val rddlink = rdds.reduce(_.union(_))
-        executor(rddlink, historyRddWriter, historyRddFile)
       } else {
-        // 已处理过的文件要做备份，以备宕机，重新加载时不被重复
         val rdd = rddQueue.take
-        executor(rdd._2, historyRddWriter, rdd._1 + System.getProperty("line.separator"))
+        rddLinks = rddLinks :+ rdd._2
+        // 已处理过的文件要做备份，以备宕机，重新加载时不被重复
+        historyRddFile = historyRddFile + rdd._1 + System.getProperty("line.separator")
       }
+      val rddlink = rddLinks.reduce(_.union(_))
+      executor(rddlink, historyRddWriter, historyRddFile)
     }
   }
 

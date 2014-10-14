@@ -11,8 +11,9 @@ import org.apache.spark.rdd.RDD
  */
 class FileToRDD(rddQueue:LinkedBlockingQueue[(String,RDD[String])],sc: SparkContext,topicLogType:String,lbqHdfsFile: LinkedBlockingQueue[String]) extends Runnable {
   override def run = while (true) {
-    val fileNmae = lbqHdfsFile.take()
+    val filePath = lbqHdfsFile.take()
     // _XXXX.tmp 此类型的文件为flume正在写入的文件，为不完正的HDFS文件
-    if (!fileNmae.matches("""^_.*(\.tmp)$""")) rddQueue.offer((fileNmae,(new RddCreate).create(sc, topicLogType,fileNmae)))
+    val fileName = filePath.split(System.getProperty("file.separator"))
+    if (!fileName(fileName.size-1).matches("^[_|.].*")) rddQueue.offer((filePath,(new RddCreate).create(sc, topicLogType,filePath)))
   }
 }
