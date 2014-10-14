@@ -29,7 +29,7 @@
 	        <appClass>com.asiainfo.mix.log.impl.ExposeAnalysis</appClass>
 	        <appName>Mix_expose_Log_process</appName>
 	        <zkQuorum>localhost:2111</zkQuorum>
-	        <topic>exposetest</topic>
+	        <topic>expose</topic>
 	        <consumerNum>2</consumerNum>
 	        <streamSpace>2</streamSpace>
 	        <batchSplitSpace>200</batchSplitSpace>
@@ -101,7 +101,7 @@
 			<describe></describe>
 		</log>
 		<log>
-			<topicLogType>exposetest</topicLogType>
+			<topicLogType>expose</topicLogType>
 			<logSpace>15</logSpace>
 			<items>log_length,log_version,log_time,cost,expose_id,ad_id,order_id,activity_id,exchange_uid,user_gender,cookie,source,client_id,user_agent,media_url,represent_type,represent_pos,page_type,interest_type,area_id,size_id,ad_pos_id,bid_time</items>
 			<itemsDescribe>日志长度,日志版本,日志时间,cost,曝光id,广告id,订单id,活动id,ex_uid,性别,cookie,流量来源,客户端ip,ua,referer,展现类型,展示位置,页面分类,用户兴趣,地域id,尺寸id,广告位id,竞价时间</itemsDescribe>
@@ -111,8 +111,8 @@
 		<log>
 			<topicLogType>bid</topicLogType>
 			<logSpace>15</logSpace>
-			<items>log_length,log_version,log_type,log_time,exchange_id,bit_id,client_ip,area_id,exchange_uid,user_agent,user_gender,media_url,media_type,page_type,web_keys,interest_type,exclude_info,ad_pos_info,bitted_ad_num,bitted_ad_info,process_time</items>
-			<itemsDescribe>日志长度,日志版本,日志类型,请求日期/时间,EXCHANGE标识,竞价ID,客户端ip,地域ID,EXCHANGE用户ID,USER AGENT,USER GENDER,URL,媒体网站分类,页面分类,页面关键词信息,百度兴趣分类,排除行业信息,广告位信息,参与竞价广告数量,参与竞价广告信息,处理时间</itemsDescribe>
+			<items>log_length,log_version,log_type,log_time,exchange_id,bit_id,client_ip,area_id,exchange_uid,user_agent,user_gender,media_url,media_type,page_type,web_keys,interest_type,exclude_info,ad_pos_info,bitted_ad_num,bitted_ad_info,is_table,is_pay_app,app_id,app_name,device_type,os,ctr_value,mobile,device_id,mac,connection type,carrier,app category,process_time</items>
+			<itemsDescribe>日志长度,日志版本,日志类型,请求日期/时间,EXCHANGE标识,竞价ID,客户端ip,地域ID,EXCHANGE用户ID,USER AGENT,USER GENDER,URL,媒体网站分类,页面分类,页面关键词信息,百度兴趣分类,排除行业信息,广告位信息,参与竞价广告数量,参与竞价广告信息,是否插屏,是否付费app,app_id,app_name,device_type,os,ctr_value,mobile,device_id,mac,connection type,carrier,app category,处理时间</itemsDescribe>
 			<rowKey>log_time,area_id,media_url,ad_pos_info,bitted_ad_info</rowKey>
 			<describe></describe>
 		</log>
