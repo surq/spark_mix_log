@@ -56,11 +56,10 @@
 	<logProperties>	
 		<describe>
 			1、[topicLogType]日志文件类型。
-			2、[logSpace]日志记录在数据库中的时间间隔，时间间隔在logSpace内的将在db中产生一条，从业务上讲所有log类型的logSpace应该是一致的（单位：分钟）。	
-			3、[items]:按log消息的实际字段顺序记录log字段名称。	
-			4、[itemsDescribe]:对log消息实际结构字段的汉语描述。					
-			5、[rowKey]:流数据中指定一组字段做为流的键，spark将会从这组主键中提取对应要更新的表的主键值。	
-			6、[separator]:kafka流数据字段分隔符，空时黙认为［0x02］。
+			2、[items]:按log消息的实际字段顺序记录log字段名称。	
+			3、[itemsDescribe]:对log消息实际结构字段的汉语描述,为非必需填写属性。					
+			4、[rowKey]:流数据中指定一组字段做为流的键，spark将会从这组主键中提取对应要更新的表的主键值。	
+			5、[separator]:kafka流数据字段分隔符，空时黙认为［0x02］。
 		</describe>
 		<log>
 			<topicLogType>click</topicLogType>
@@ -92,6 +91,12 @@
 		</log>
 	</logProperties>
 	<tableDefines>
+		<describe>
+			1、[tableName]操作mysql的表名
+			2、[items]:表结构字段名称	
+			3、[itemsDescribe]:表结构字段的汉语描述,为非必需填写属性。					
+			4、[describe]:表功能描述属性，为非必需填写属性。
+		</describe>
 		<table>
 			<tableName>dsp_report_data</tableName>
 			<items>id,activity_id,order_id,material_id,ad_id,size_id,area_id,start_time,end_time,media,ad_pos_id,bid_cnt,bid_success_cnt,expose_cnt,click_cnt,arrive_cnt,second_jump_cnt,trans_cnt,cost</items>
