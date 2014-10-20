@@ -25,11 +25,6 @@ object SparkLogAnalysisApp extends MixLog {
    * tablesDefMap：mysql表定义配置<br>
    */
   def main(args: Array[String]): Unit = {
-    try {
-      
-    }catch {
-      case e: Exception => println(this.getClass().getName() + ".fileScanner:Exception!"); e.printStackTrace();
-    }
 
     // xml解析
     XmlProperiesAnalysis.getXmlProperies
